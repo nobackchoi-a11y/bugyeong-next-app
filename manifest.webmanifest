@@ -1,0 +1,25 @@
+{
+  "name": "부경사업단 업무앱",
+  "short_name": "부경업무앱",
+  "description": "부경사업단 가동관리 및 대리점 실적 업무앱",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f8fd",
+  "theme_color": "#253b8f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

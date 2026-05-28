@@ -11,3 +11,13 @@
 
 ## 운영 방식
 GitHub에 파일을 업데이트하면 Netlify가 자동 배포합니다.
+
+
+## PWA V1 추가
+- `manifest.webmanifest` : 홈화면 설치 정보
+- `service-worker.js` : 기본 캐시 및 오프라인 보조
+- `icon-192.png`, `icon-512.png` : 앱 아이콘
+- `index.html` : PWA 메타 및 서비스워커 등록 스크립트 추가
+
+## GitHub 업로드 방법
+압축을 풀고 모든 파일을 GitHub 저장소 루트에 업로드한 뒤 Commit 하면 Netlify가 자동 배포합니다.
