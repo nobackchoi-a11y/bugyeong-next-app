@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>관리자 설정 · 부경사업단 업무앱</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:'Malgun Gothic','Noto Sans KR',Arial,sans-serif;background:#f5f8fd;color:#0f172a}
+.wrap{max-width:1180px;margin:0 auto;padding:24px}
+.header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+h1{margin:0;font-size:30px;letter-spacing:-1px}.sub{color:#64748b;font-weight:800;margin-top:6px}
+.card{background:#fff;border:1px solid #dfe8f3;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 6px 20px rgba(15,23,42,.045)}
+.card h2{margin:0 0 12px;font-size:20px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}label{font-size:13px;font-weight:900;color:#334155}
+input,select{border:1px solid #cbd5e1;border-radius:10px;padding:12px 13px;font-size:14px;background:#fff}
+button{border:1px solid #d3deec;background:#fff;border-radius:10px;padding:11px 15px;font-weight:900;color:#183153;cursor:pointer}
+button.primary{background:#253b8f;color:#fff;border-color:#253b8f}button.green{background:#16a34a;color:#fff;border-color:#16a34a}button.red{background:#ef4444;color:#fff;border-color:#ef4444}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.notice{padding:14px 16px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;font-weight:800;line-height:1.7}
+.warn{background:#fff7ed;border-color:#fed7aa;color:#9a3412}.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
+pre{white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:14px;overflow:auto;font-size:12px}
+.tablewrap{overflow:auto;border:1px solid #dfe8f3;border-radius:12px;max-height:360px}
+table{border-collapse:collapse;width:100%;font-size:12px;min-width:900px}
+th,td{border-bottom:1px solid #e5edf7;border-right:1px solid #eef3f8;padding:9px;text-align:center;white-space:nowrap}
+th{position:sticky;top:0;background:#eff6ff;font-weight:900}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.header{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div><h1>관리자 설정</h1><div class="sub">Supabase 연결 · 엑셀 업로드 준비 화면</div></div>
+    <div class="actions"><button onclick="location.href='index.html'">앱으로 돌아가기</button><button class="primary" onclick="saveConfig()">설정 저장</button></div>
+  </div>
+
+  <div class="card">
+    <h2>1. Supabase 연결 정보</h2>
+    <div class="notice warn">Project URL과 anon public key만 입력하세요. service_role key는 절대 입력하면 안 됩니다.</div><br>
+    <div class="grid">
+      <div class="field"><label>Supabase Project URL</label><input id="supabaseUrl" placeholder="https://xxxx.supabase.co"></div>
+      <div class="field"><label>Supabase anon public key</label><input id="supabaseKey" placeholder="eyJhbGciOi..."></div>
+      <div class="field"><label>가동관리 테이블명</label><input id="fcTable" value="fc_activity"></div>
+      <div class="field"><label>대리점 테이블명</label><input id="agencyTable" value="agency_performance"></div>
+    </div>
+    <div class="actions">
+      <button class="primary" onclick="saveConfig()">설정 저장</button>
+      <button onclick="testConnection()">연결 테스트</button>
+      <button class="red" onclick="clearConfig()">설정 초기화</button>
+    </div>
+    <div id="connResult" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. 테이블 생성 SQL</h2>
+    <div class="notice">Supabase → SQL Editor에서 아래 SQL을 실행하면 기본 업로드 테이블이 생성됩니다.</div>
+    <pre id="sqlBox"></pre>
+    <div class="actions"><button onclick="copySQL()">SQL 복사</button></div>
+  </div>
+
+  <div class="card">
+    <h2>3. 엑셀 미리보기 & 업로드</h2>
+    <div class="grid">
+      <div class="field"><label>업로드 구분</label><select id="uploadType"><option value="fc">가동관리 파일</option><option value="agency">대리점리스트/대리점실적 파일</option></select></div>
+      <div class="field"><label>엑셀 파일 선택</label><input id="excelFile" type="file" accept=".xlsx,.xls,.csv"></div>
+    </div>
+    <div class="actions"><button onclick="previewExcel()">미리보기</button><button class="green" onclick="uploadRows()">Supabase 저장</button></div>
+    <div id="previewInfo" style="margin:12px 0;color:#475569;font-weight:800"></div>
+    <div class="tablewrap"><table id="previewTable"></table></div>
+  </div>
+</div>
+
+<script>
+const CONFIG_KEY='bugyeong_supabase_config';
+let previewRows=[];
+const CREATE_SQL=`create table if not exists fc_activity (
+  id bigserial primary key,
+  uploaded_at timestamptz default now(),
+  source_type text default 'fc',
+  payload jsonb not null
+);
+
+create table if not exists agency_performance (
+  id bigserial primary key,
+  uploaded_at timestamptz default now(),
+  source_type text default 'agency',
+  payload jsonb not null
+);
+
+alter table fc_activity enable row level security;
+alter table agency_performance enable row level security;
+
+drop policy if exists "public read fc_activity" on fc_activity;
+create policy "public read fc_activity" on fc_activity for select to anon using (true);
+
+drop policy if exists "public read agency_performance" on agency_performance;
+create policy "public read agency_performance" on agency_performance for select to anon using (true);
+
+drop policy if exists "anon insert fc_activity" on fc_activity;
+create policy "anon insert fc_activity" on fc_activity for insert to anon with check (true);
+
+drop policy if exists "anon insert agency_performance" on agency_performance;
+create policy "anon insert agency_performance" on agency_performance for insert to anon with check (true);`;
+document.getElementById('sqlBox').textContent=CREATE_SQL;
+
+function loadConfig(){const raw=localStorage.getItem(CONFIG_KEY);if(!raw)return;const c=JSON.parse(raw);supabaseUrl.value=c.url||'';supabaseKey.value=c.key||'';fcTable.value=c.fcTable||'fc_activity';agencyTable.value=c.agencyTable||'agency_performance';}
+function getConfig(){return{url:supabaseUrl.value.trim(),key:supabaseKey.value.trim(),fcTable:fcTable.value.trim(),agencyTable:agencyTable.value.trim()};}
+function saveConfig(){localStorage.setItem(CONFIG_KEY,JSON.stringify(getConfig()));connResult.innerHTML='<div class="notice ok">설정 저장 완료</div>';}
+function clearConfig(){localStorage.removeItem(CONFIG_KEY);location.reload();}
+function client(){const c=getConfig();if(!c.url||!c.key)throw new Error('Supabase URL과 anon key를 먼저 입력하세요.');return supabase.createClient(c.url,c.key);}
+async function testConnection(){try{saveConfig();const c=getConfig();const sb=client();const {error}=await sb.from(c.fcTable).select('id',{count:'exact',head:true});if(error)throw error;connResult.innerHTML='<div class="notice ok">연결 성공: 테이블 조회 가능</div>';}catch(e){connResult.innerHTML='<div class="notice warn">연결 실패: '+e.message+'</div>';}}
+function copySQL(){navigator.clipboard.writeText(CREATE_SQL);alert('SQL 복사 완료');}
+function previewExcel(){const file=excelFile.files[0];if(!file){alert('엑셀 파일을 선택하세요.');return;}const reader=new FileReader();reader.onload=e=>{const data=new Uint8Array(e.target.result);const wb=XLSX.read(data,{type:'array'});const sheetName=wb.SheetNames.includes('메인실적취합')?'메인실적취합':wb.SheetNames[0];const ws=wb.Sheets[sheetName];previewRows=XLSX.utils.sheet_to_json(ws,{defval:''});renderPreview(previewRows.slice(0,50),sheetName);};reader.readAsArrayBuffer(file);}
+function renderPreview(rows,sheetName){previewInfo.textContent=`${sheetName} / 전체 ${previewRows.length.toLocaleString()}행 중 ${rows.length}행 미리보기`;if(!rows.length){previewTable.innerHTML='';return;}const cols=Object.keys(rows[0]).slice(0,12);previewTable.innerHTML='<thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+cols.map(c=>`<td>${String(r[c]??'').slice(0,60)}</td>`).join('')+'</tr>').join('')+'</tbody>';}
+async function uploadRows(){try{if(!previewRows.length){alert('먼저 미리보기를 실행하세요.');return;}saveConfig();const c=getConfig();const sb=client();const table=uploadType.value==='fc'?c.fcTable:c.agencyTable;const source_type=uploadType.value;const batchSize=500;for(let i=0;i<previewRows.length;i+=batchSize){const batch=previewRows.slice(i,i+batchSize).map(row=>({source_type,payload:row}));const {error}=await sb.from(table).insert(batch);if(error)throw error;previewInfo.textContent=`저장 중... ${Math.min(i+batchSize,previewRows.length).toLocaleString()} / ${previewRows.length.toLocaleString()}행`;}previewInfo.innerHTML='<span style="color:#166534">Supabase 저장 완료</span>';}catch(e){alert('저장 실패: '+e.message);}}
+loadConfig();
+</script>
+</body>
+</html>

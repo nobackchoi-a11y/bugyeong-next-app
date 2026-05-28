@@ -4,7 +4,7 @@ const CORE_ASSETS = [
   './index.html',
   './fc.html',
   './manager.html',
-  './agency.html',
+  './agency.html',\n  './admin.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png'

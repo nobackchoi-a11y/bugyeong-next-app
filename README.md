@@ -21,3 +21,15 @@ GitHub에 파일을 업데이트하면 Netlify가 자동 배포합니다.
 
 ## GitHub 업로드 방법
 압축을 풀고 모든 파일을 GitHub 저장소 루트에 업로드한 뒤 Commit 하면 Netlify가 자동 배포합니다.
+
+
+## Supabase Ready V1 추가
+- `admin.html` : Supabase URL/Anon Key 설정, 테이블 생성 SQL, 엑셀 미리보기 및 업로드
+- `index.html` : 관리자 설정 메뉴 추가
+- `service-worker.js` : 관리자 페이지 캐시 항목 추가
+
+### 다음 작업
+1. Supabase에서 새 프로젝트 생성
+2. SQL Editor에 `admin.html`의 테이블 생성 SQL 실행
+3. 관리자 설정 화면에서 Supabase URL / anon public key 입력
+4. 엑셀 업로드 테스트
