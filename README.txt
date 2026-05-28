@@ -1,2 +1,4 @@
-부경사업단 업무앱 V4.2 Stable
-FC DATA 자동교체 완료
+Bugyeong Business App V5.0.2 Button Fix Final
+FC data replaced
+Branch manager data replaced
+Agency dashboard template data replaced
